@@ -5,12 +5,103 @@
 wordbits = 12
 pagebits = 7
 
-opAND = 0 # AC <= AC & mem
-opTAD = 1 # AC <= AC + mem
-opISZ = 2 # mem <= mem + 1; skip next instr if mem is now 0
-opDCA = 3 # mem <= AC; AC <= 0
-opJMS = 4 # mem <= PC; PC <= mem + 1
-opJMP = 5 # PC <= mem
+# memory-reference instruction opcodes
+opAND = 0 # AC := AC & mem
+opTAD = 1 # AC := AC + mem
+opISZ = 2 # mem := mem + 1; skip next instr if mem is now 0
+opDCA = 3 # mem := AC; AC := 0
+opJMS = 4 # mem := PC; PC := mem + 1
+opJMP = 5 # PC := mem
+# memory locations [010 .. 017] are preincremented when indirected
+
+# group 1 operate microinstructions (may be or'ed together to perform various combinations)
+iNOP = 07000 # no-op
+iIAC = 07001 # AC := AC + 1
+iRAL = 07004 # (L, AC) := rotateleft((L, AC), 1)
+iRTL = 07006 # (L, AC) := rotateleft((L, AC), 2)
+iRAR = 07010 # (L, AC) := rotateright((L, AC), 1)
+iRTR = 07012 # (L, AC) := rotateright((L, AC), 2)
+iCML = 07020 # L := ~L
+iCMA = 07040 # AC := ~AC
+iCIA = 07041 # AC := -AC
+iCLL = 07100 # L := 0
+iSTL = 07120 # L := 1
+iCLA = 07200 # AC := 0
+iSTA = 07240 # AC := ~0
+# group 2 operate microinstructions (may be or'ed together to perform various combinations)
+iHLT = 07402 # halt
+iOSR = 07404 # AC := AC | SR
+iSKP = 07410 # skip next instr unconditionally
+iSNL = 07420 # skip next instr iff L != 0
+iSZL = 07430 # skip next instr iff L = 0
+iSZA = 07440 # skip next instr iff AC = 0
+iSNA = 07450 # skip next instr iff AC != 0
+iSMA = 07500 # skip next instr iff top bit of AC (sign bit) != 0
+iSPA = 07510 # skip next instr iff top bit of AC (sign bit) = 0
+iCLA2 = 07600 # AC := 0
+
+# IOT instructions
+iION = 06001 # interrupts on
+iIOF = 06002 # interrupts off
+# on interrupt, interrupts are turned off, current PC is saved at 0, and PC is set to 1
+# memory extension control type 183
+iCDF = 06201 # 62N1 data field register := instr >> 3 & 7
+iCIF = 06202 # 62N2 instr field register := instr >> 3 & 7 on next JMP or JMS
+iRDF = 06214 # AC := AC & 07707 | data field register << 3
+iRIF = 06224 # AC := AC & 07707 | instr field register << 3
+iRIB = 06234 # AC := AC & 07700 | saved instr field << 3 | saved data field
+iRMF = 06244 # instr field := saved instr field; data field := saved data field
+
+# extended arithmetic element (EAE) instructions
+iMUY = 07405 # (AC, MQ) := MQ * word following; L := 0
+iDVI = 07407 # (MQ, AC) = divmod((AC, MQ), word following); L := 0
+# more TBD
+
+# automatic restart type KR01
+iSPL = 06102 # skip next instr on power low
+# memory parity type 188 NYI
+# teletype control
+iKSF = 06031 # skip on keyboard flag
+iKCC = 06032 # clear keyboard flag
+iKRS = 06034 # keyboard read buffer static: AC := AC & 07400 | keyboard buffer, keyboard flag untouched
+iKRB = 06036 # keyboard read buffer dynamic: AC := keyboard buffer, keyboard flag cleared
+iTSF = 06041 # skip on teleprinter flag
+iTCF = 06042 # clear teleprinter flag
+iTPC = 06044 # load teleprinter and print: teleprinter := AC & 0377
+iTLS = 06046 # load teleprinter sequence: teleprinter flag cleared; teleprinter := AC & 0377
+# multi-teletype ops NYI
+# high-speed tape reader and control type 750C
+iRSF = 06011 # skip on reader flag
+iRRB = 06012 # read reader buffer: AC := AC & 07400 | buffer; reader flag cleared
+iRFC = 06014 # reader fetch character: reader flag cleared, read of next char into buffer initiated, flag will be set when done
+# high-speed paper tape punch and control type 75E
+iPSF = 06021 # skip on punch flag
+iPCF = 06022 # clear punch flag
+iPPC = 06024 # load punch buffer and punch: punch buffer := AC & 0377, then punched; flag untouched
+iPLS = 06026 # load punch buffer sequence: punch flag cleared; punch buffer := AC & 0377; punch initiated, flag will be set when done
+# A/D converter type 189
+iADC = 06004 # convert analog to digital: AC := digitized quantity
+# A/D converter type 138E, multiplexer type 139E
+iADSF = 06531 # skip on A-D flag
+iADCV = 06532 # clear flag, initiate conversion, flag set when done
+iADRB = 06534 # AC := last converted value, flag cleared
+iADCC = 06541 # multiplexer channel address register CAR := 0
+iADSC = 06542 # CAR := AC & 0077, max of 64 single-ended or 32 differential channels
+iADIC = 06544 # CAR := CAR + 1 with wraparound
+# D/A converter type AA01A NYI
+# oscilloscope type 34D NYI
+# precision CRT display type 30N NYI
+# light pen type 370 NYI
+# incremental plotter and control type 350B NYI
+# card reader and control type CR01C NYI
+# card reader and control type 451 NYI
+# card punch control type 450 NYI
+# automatic line printer and control type 645 NYI
+# serial magnetic drum system type 251 NYI
+# DECtape systems NYI
+# automatic magnetic tape control type 57A NYI
+# magnetic tape system type 580 NYI
+# data communication systems type 680 NYI
 
 class CodeBuffer(object) :
 	"""overall management of a block of generated code."""
@@ -78,6 +169,7 @@ class CodeBuffer(object) :
 					else :
 						self.refs.append((addr, bits)) # for later resolution
 					#end if
+					return self # for convenient chaining of calls
 				#end refer
 
 				def resolve(self, value = None) :
@@ -93,6 +185,7 @@ class CodeBuffer(object) :
 						self.fixup(addr, bits)
 					#end for
 					self.refs = []
+					return self # for convenient chaining of calls
 				#end resolve
 
 				def resolved(self) :
@@ -160,7 +253,7 @@ class CodeBuffer(object) :
 
 	def w(self, value) :
 		"""deposits value into the current origin and advances it by 1."""
-		assert self.origin != None
+		assert self.origin != None, "origin not set"
 		self.d(self.origin, value)
 		self.origin = (self.origin + 1) % (1 << wordbits)
 	#end w
@@ -168,8 +261,7 @@ class CodeBuffer(object) :
 	def mi(self, op, ind, addr) :
 		"""generates a memory-reference instruction at the current origin,
 		referencing the specified address."""
-		assert self.origin != None
-		self.maxbits(op, 3)
+		self.maxbits(op, 3) # assuming it's in [0 .. 5]!
 		mask = (1 << pagebits) - 1
 		if self.origin & ~mask == addr & ~mask :
 			page = 1
@@ -181,7 +273,21 @@ class CodeBuffer(object) :
 		self.w(op << 9 | (0, 1)[ind] << 8 | page << 7 | addr & mask)
 	#end mi
 
-	# more TBD
+	def oi(self, instr) :
+		"""generates an operate instruction at the current origin, checking
+		for conflicting bit settings."""
+		assert instr & 07000 == 07000
+		if instr & 00400 == 0 :
+			# group 1
+			assert instr & 00015 in (00000, 00001, 00004, 00010), "illegal combination of group 1 ops"
+			  # only rotate in one direction at a time, can't rotate and increment together
+		else :
+			# group 2
+			assert instr & 00001 == 0, "illegal group 2 op"
+			  # everything else valid?
+		#end if
+		self.w(instr)
+	#end oi
 
 	def done(self) :
 		"""called at completion of code generation, prior to output of code. Currently
@@ -192,14 +298,15 @@ class CodeBuffer(object) :
 	#end done
 
 	def output(self, start = None, end = None) :
-		"""generator which yields a sequence of (addr, value) pairs in order of
-		increasing address over the specified range."""
+		"""generator which yields a sequence of (addr, value) pairs for nonzero values
+		in order of increasing address over the specified range."""
 		for base in sorted(self.blocks.keys()) :
 			block = self.blocks[base]
 			for offset in range(0, len(block)) :
 				addr = base + offset
-				if (start == None or addr >= start) and (end == None or addr < end) :
-					yield (addr, block[offset])
+				value = block[offset]
+				if (start == None or addr >= start) and (end == None or addr < end) and value != 0 :
+					yield (addr, value)
 				#end if
 			#end for
 		#end for
@@ -211,18 +318,35 @@ class CodeBuffer(object) :
 if __name__ == "__main__" :
 	import sys
 	c = CodeBuffer()
-	c.org(07757)
-	l1 = c.label("here")
-	l2 = c.label("there")
-	l1.resolve()
-	c.w(06031)
-	l1.mi(opJMP, 0)
+	# following sequence assembles the standard RIM loader
+	start = 07756
+	c.org(start)
+	l1 = c.label("l1").resolve()
+	c.w(iKCC)
+	l2 = c.label("l2").resolve()
+	c.w(iKSF)
 	l2.mi(opJMP, 0)
-	c.w(06032)
-	l2.resolve()
-	c.w(06036)
+	c.w(iKRB)
+	c.oi(iCLL | iRTL)
+	c.oi(iRTL)
+	c.oi(iSPA)
+	l2.mi(opJMP, 0)
+	c.oi(iRTL)
+	l3 = c.label("l3").resolve()
+	c.w(iKSF)
+	l3.mi(opJMP, 0)
+	c.w(iKRS)
+	c.oi(iSNL)
+	temp = c.label("temp")
+	temp.mi(opDCA, 1)
+	temp.mi(opDCA, 0)
+	l1.mi(opJMP, 0)
+	temp.resolve()
+	c.w(0)
+	c.w(0)
 	c.done()
-	for addr, value in c.output(07756, 010000) :
+	for addr, value in c.output(start, 010000) :
+	  # dump as sequence of memory-deposit commands for SIMH
 		sys.stdout.write("d %4o %4o\n" % (addr, value))
 	#end for
 #end if
