@@ -307,7 +307,7 @@ class CodeBuffer(object) :
 		return self # for convenient chaining of calls
 	#end done
 
-	def output(self, start = None, end = None) :
+	def dump(self, start = None, end = None) :
 		"""generator which yields a sequence of (addr, value) pairs for nonzero values
 		in order of increasing address over the specified range."""
 		for base in sorted(self.blocks.keys()) :
@@ -321,9 +321,17 @@ class CodeBuffer(object) :
 			#end for
 		#end for
 		raise StopIteration
-	#end output
+	#end dump
 
 #end CodeBuffer
+
+def dump_simh(buf, out) :
+	"""dumps the contents of CodeBuffer object buf to out as a sequence of
+	SIMH memory-deposit commands."""
+	for addr, value in buf.dump(0, 010000) :
+		out.write("d %4o %4o\n" % (addr, value))
+	#end for
+#end dump_simh
 
 if __name__ == "__main__" :
 	import sys
@@ -355,8 +363,5 @@ if __name__ == "__main__" :
 	c.w(0)
 	c.w(0)
 	c.done()
-	for addr, value in c.output(start, 010000) :
-	  # dump as sequence of memory-deposit commands for SIMH
-		sys.stdout.write("d %4o %4o\n" % (addr, value))
-	#end for
+	dump_simh(c, sys.stdout)
 #end if
