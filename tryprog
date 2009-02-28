@@ -1,0 +1,46 @@
+#!/usr/bin/python
+#+
+# Test of my ass8 PDP-8 code-generation library
+#
+# Written by Lawrence D'Oliveiro <ldo@geek-central.gen.nz>.
+#-
+
+import sys
+from ass8 import \
+	CodeBuffer, \
+	i, \
+	op, \
+	dump_simh
+
+c = CodeBuffer()
+index = c.label("index").resolve(010) # index reg
+start = c.label("start")
+thestr = c.label("thestr")
+ptr = c.label("ptr").resolve(020) # pointer to data
+thestr.d(ptr)
+# program start
+c.org(0200)
+start.resolve()
+c.oi(i.CLA)
+ptr.mi(op.TAD, 0)
+c.oi(i.CIA).oi(i.IAC).oi(i.CIA) # AC := AC - 1
+index.mi(op.DCA, 0)
+loop = c.label("loop").resolve()
+done = c.label("done")
+c.oi(i.CLA)
+index.mi(op.TAD, 1)
+c.oi(i.SNA)
+done.mi(op.JMP, 0)
+c.oi(i.TLS)
+out = c.label("out").resolve()
+c.oi(i.TSF)
+out.mi(op.JMP, 0)
+loop.mi(op.JMP, 0)
+done.resolve()
+c.oi(i.HLT)
+# data
+c.org(0300)
+thestr.resolve()
+c.ws("THE QUICK BROWN FOX\n\0")
+c.start(start)
+dump_simh(c.done(), sys.stdout)

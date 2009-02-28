@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #+
-# Test of my ass8 PDP-8 code-generation library.
+# Test of my ass8 PDP-8 code-generation library -- generate the standard RIM loader.
 #
 # Written by Lawrence D'Oliveiro <ldo@geek-central.gen.nz>.
 #-
@@ -13,7 +13,6 @@ from ass8 import \
 	dump_simh
 
 c = CodeBuffer()
-# following sequence assembles the standard RIM loader
 start = 07756
 c.org(start)
 l1 = c.label("l1").resolve()
@@ -39,5 +38,6 @@ l1.mi(op.JMP, 0)
 temp.resolve()
 c.w(0)
 c.w(0)
+c.start(start)
 c.done()
 dump_simh(c, sys.stdout)
