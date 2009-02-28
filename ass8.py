@@ -168,7 +168,7 @@ class CodeBuffer(object) :
 					location. Note only supported values for bits are 8 (including
 					page indicator) or 12. May be called any number of times before or
 					after the label is resolved."""
-					Parent.maxword(addr)
+					addr = Parent.resolve(addr)
 					assert bits == pagebits + 1 or bits == wordbits
 					if self.value != None :
 						# resolve straight away
@@ -185,8 +185,9 @@ class CodeBuffer(object) :
 					assert self.value == None # not already resolved
 					if value == None :
 						value = Parent.origin
+					else :
+						value = Parent.resolve(value)
 					#end if
-					Parent.maxword(value)
 					self.value = value
 					for addr, bits in self.refs :
 						self.fixup(addr, bits)
@@ -207,12 +208,25 @@ class CodeBuffer(object) :
 					#end if
 				#end assert_resolved
 
+				def d(self, addr) :
+					"""generates a word at the specified address in the CodeBuffer that
+					will contain the address of the label."""
+					Parent.d(Parent.resolve(addr), 0)
+					return self.refer(Parent.lastaddr, wordbits)
+				#end d
+
+				def w(self) :
+					"""generates a word in the CodeBuffer that will contain the
+					address of the label."""
+					Parent.w(0)
+					return self.refer(Parent.lastaddr, wordbits)
+				#end w
+
 				def mi(self, op, ind) :
 					"""generates a memory-reference instruction in the CodeBuffer
 					pointing at the label."""
 					Parent.mi(op, ind, 0)
-					self.refer(Parent.lastaddr, pagebits + 1)
-					return self # for convenient chaining of calls
+					return self.refer(Parent.lastaddr, pagebits + 1)
 				#end mi
 
 			#end label
@@ -226,11 +240,23 @@ class CodeBuffer(object) :
 		self.origin = None
 		self.labels = []
 		self.label = MakeLabelClass(self)
+		self.startaddr = None
 	#end __init__
+
+	def resolve(self, ref) :
+		if type(ref) == self.label :
+			ref = ref.value
+			assert ref != None, "reference to unresolved label %s" % ref.name
+		else :
+			ref = int(ref)
+		#end if
+		self.maxword(ref)
+		return ref
+	#end resolve
 
 	def e(self, addr) :
 		"""returns the value at location addr, or 0 if not yet set."""
-		self.maxword(addr)
+		addr = self.resolve(addr)
 		if len(self.blocks) == 1 : # assume just one 4kiW block for all of memory
 			val = self.blocks[0][addr]
 		else :
@@ -241,22 +267,20 @@ class CodeBuffer(object) :
 
 	def d(self, addr, value) :
 		"""deposits value into location addr."""
-		self.maxword(addr)
-		self.maxword(value)
 		if len(self.blocks) == 0 :
 			self.blocks[0] = [0] * (1 << wordbits)
 			  # can't be bothered scrimping on memory, just allocate
 			  # one 4kiW block
 		#end if
-		self.blocks[0][addr] = value
+		addr = self.resolve(addr)
+		self.blocks[0][addr] = self.resolve(value)
 		self.lastaddr = addr
 		return self # for convenient chaining of calls
 	#end d
 
 	def org(self, addr) :
 		"""sets the origin for defining subsequent consecutive memory contents."""
-		self.maxword(addr)
-		self.origin = int(addr)
+		self.origin = self.resolve(addr)
 		self.lastaddr = self.origin
 		return self # for convenient chaining of calls
 	#end if
@@ -269,11 +293,24 @@ class CodeBuffer(object) :
 		return self # for convenient chaining of calls
 	#end w
 
+	def ws(self, values) :
+		"""deposits a sequence of values into memory starting at the current origin."""
+		if type(values) == str :
+			f = ord
+		else : # assume sequence of integers
+			f = int
+		#end if
+		for value in values :
+			self.w(f(value))
+		#end for
+	#end ws
+
 	def mi(self, op, ind, addr) :
 		"""generates a memory-reference instruction at the current origin,
 		referencing the specified address."""
 		self.maxbits(op, 3) # assuming it's in [0 .. 5]!
 		mask = (1 << pagebits) - 1
+		addr = self.resolve(addr)
 		if self.origin & ~mask == addr & ~mask :
 			page = 1
 		elif addr & ~mask == 0 :
@@ -302,6 +339,13 @@ class CodeBuffer(object) :
 		#end if
 		return self.w(instr)
 	#end oi
+
+	def start(self, startaddr) :
+		"""sets the start-address of the program. This is purely informational
+		as far as ths CodeBuffer class is concerned."""
+		assert self.startaddr == None
+		self.startaddr = self.resolve(startaddr)
+	#end start
 
 	def done(self) :
 		"""called at completion of code generation, prior to output of code. Currently
@@ -336,4 +380,7 @@ def dump_simh(buf, out) :
 	for addr, value in buf.dump(0, 010000) :
 		out.write("d %4o %4o\n" % (addr, value))
 	#end for
+	if buf.startaddr != None :
+		out.write("g %o\n" % buf.startaddr)
+	#end if
 #end dump_simh
