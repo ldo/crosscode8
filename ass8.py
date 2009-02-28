@@ -5,6 +5,13 @@
 wordbits = 12
 pagebits = 7
 
+opAND = 0 # AC <= AC & mem
+opTAD = 1 # AC <= AC + mem
+opISZ = 2 # mem <= mem + 1; skip next instr if mem is now 0
+opDCA = 3 # mem <= AC; AC <= 0
+opJMS = 4 # mem <= PC; PC <= mem + 1
+opJMP = 5 # PC <= mem
+
 class CodeBuffer(object) :
 	"""overall management of a block of generated code."""
 
@@ -100,6 +107,13 @@ class CodeBuffer(object) :
 					#end if
 				#end assert_resolved
 
+				def mi(self, op, ind) :
+					"""generates a memory-reference instruction in the CodeBuffer
+					pointing at the label."""
+					Parent.mi(op, ind, 0)
+					self.refer(Parent.lastaddr, pagebits + 1)
+				#end mi
+
 			#end label
 
 		#begin MakeLabelClass
@@ -139,6 +153,7 @@ class CodeBuffer(object) :
 
 	def org(self, addr) :
 		"""sets the origin for defining subsequent consecutive memory contents."""
+		self.maxword(addr)
 		self.origin = int(addr)
 		self.lastaddr = self.origin
 	#end if
@@ -147,8 +162,24 @@ class CodeBuffer(object) :
 		"""deposits value into the current origin and advances it by 1."""
 		assert self.origin != None
 		self.d(self.origin, value)
-		self.origin += 1
+		self.origin = (self.origin + 1) % (1 << wordbits)
 	#end w
+
+	def mi(self, op, ind, addr) :
+		"""generates a memory-reference instruction at the current origin,
+		referencing the specified address."""
+		assert self.origin != None
+		self.maxbits(op, 3)
+		mask = (1 << pagebits) - 1
+		if self.origin & ~mask == addr & ~mask :
+			page = 1
+		elif addr & ~mask == 0 :
+			page = 0
+		else :
+			raise AssertionError("illegal cross-page reference")
+		#end if
+		self.w(op << 9 | (0, 1)[ind] << 8 | page << 7 | addr & mask)
+	#end mi
 
 	# more TBD
 
@@ -185,10 +216,8 @@ if __name__ == "__main__" :
 	l2 = c.label("there")
 	l1.resolve()
 	c.w(06031)
-	c.w(05340)
-	l1.refer(c.lastaddr, pagebits + 1)
-	c.w(05340)
-	l2.refer(c.lastaddr, pagebits + 1)
+	l1.mi(opJMP, 0)
+	l2.mi(opJMP, 0)
 	c.w(06032)
 	l2.resolve()
 	c.w(06036)
