@@ -5,103 +5,108 @@
 wordbits = 12
 pagebits = 7
 
-# memory-reference instruction opcodes
-opAND = 0 # AC := AC & mem
-opTAD = 1 # AC := AC + mem
-opISZ = 2 # mem := mem + 1; skip next instr if mem is now 0
-opDCA = 3 # mem := AC; AC := 0
-opJMS = 4 # mem := PC; PC := mem + 1
-opJMP = 5 # PC := mem
+class op :
+	# memory-reference instruction opcodes
+	AND = 0 # AC := AC & mem
+	TAD = 1 # AC := AC + mem
+	ISZ = 2 # mem := mem + 1; skip next instr if mem is now 0
+	DCA = 3 # mem := AC; AC := 0
+	JMS = 4 # mem := PC; PC := mem + 1
+	JMP = 5 # PC := mem
+#end op
 # memory locations [010 .. 017] are preincremented when indirected
 
-# group 1 operate microinstructions (may be or'ed together to perform various combinations)
-iNOP = 07000 # no-op
-iIAC = 07001 # AC := AC + 1
-iRAL = 07004 # (L, AC) := rotateleft((L, AC), 1)
-iRTL = 07006 # (L, AC) := rotateleft((L, AC), 2)
-iRAR = 07010 # (L, AC) := rotateright((L, AC), 1)
-iRTR = 07012 # (L, AC) := rotateright((L, AC), 2)
-iCML = 07020 # L := ~L
-iCMA = 07040 # AC := ~AC
-iCIA = 07041 # AC := -AC
-iCLL = 07100 # L := 0
-iSTL = 07120 # L := 1
-iCLA = 07200 # AC := 0
-iSTA = 07240 # AC := ~0
-# group 2 operate microinstructions (may be or'ed together to perform various combinations)
-iHLT = 07402 # halt
-iOSR = 07404 # AC := AC | SR
-iSKP = 07410 # skip next instr unconditionally
-iSNL = 07420 # skip next instr iff L != 0
-iSZL = 07430 # skip next instr iff L = 0
-iSZA = 07440 # skip next instr iff AC = 0
-iSNA = 07450 # skip next instr iff AC != 0
-iSMA = 07500 # skip next instr iff top bit of AC (sign bit) != 0
-iSPA = 07510 # skip next instr iff top bit of AC (sign bit) = 0
-iCLA2 = 07600 # AC := 0
+class i :
+	# remaining instruction mnemonics
+	# group 1 operate microinstructions (may be or'ed together to perform various combinations)
+	NOP = 07000 # no-op
+	IAC = 07001 # AC := AC + 1
+	RAL = 07004 # (L, AC) := rotateleft((L, AC), 1)
+	RTL = 07006 # (L, AC) := rotateleft((L, AC), 2)
+	RAR = 07010 # (L, AC) := rotateright((L, AC), 1)
+	RTR = 07012 # (L, AC) := rotateright((L, AC), 2)
+	CML = 07020 # L := ~L
+	CMA = 07040 # AC := ~AC
+	CIA = 07041 # AC := -AC
+	CLL = 07100 # L := 0
+	STL = 07120 # L := 1
+	CLA = 07200 # AC := 0
+	STA = 07240 # AC := ~0
+	# group 2 operate microinstructions (may be or'ed together to perform various combinations)
+	HLT = 07402 # halt
+	OSR = 07404 # AC := AC | SR
+	SKP = 07410 # skip next instr unconditionally
+	SNL = 07420 # skip next instr iff L != 0
+	SZL = 07430 # skip next instr iff L = 0
+	SZA = 07440 # skip next instr iff AC = 0
+	SNA = 07450 # skip next instr iff AC != 0
+	SMA = 07500 # skip next instr iff top bit of AC (sign bit) != 0
+	SPA = 07510 # skip next instr iff top bit of AC (sign bit) = 0
+	CLA2 = 07600 # AC := 0
 
-# IOT instructions
-iION = 06001 # interrupts on
-iIOF = 06002 # interrupts off
-# on interrupt, interrupts are turned off, current PC is saved at 0, and PC is set to 1
-# memory extension control type 183
-iCDF = 06201 # 62N1 data field register := instr >> 3 & 7
-iCIF = 06202 # 62N2 instr field register := instr >> 3 & 7 on next JMP or JMS
-iRDF = 06214 # AC := AC & 07707 | data field register << 3
-iRIF = 06224 # AC := AC & 07707 | instr field register << 3
-iRIB = 06234 # AC := AC & 07700 | saved instr field << 3 | saved data field
-iRMF = 06244 # instr field := saved instr field; data field := saved data field
+	# IOT instructions
+	ION = 06001 # interrupts on
+	IOF = 06002 # interrupts off
+	# on interrupt, interrupts are turned off, current PC is saved at 0, and PC is set to 1
+	# memory extension control type 183
+	CDF = 06201 # 62N1 data field register := instr >> 3 & 7
+	CIF = 06202 # 62N2 instr field register := instr >> 3 & 7 on next JMP or JMS
+	RDF = 06214 # AC := AC & 07707 | data field register << 3
+	RIF = 06224 # AC := AC & 07707 | instr field register << 3
+	RIB = 06234 # AC := AC & 07700 | saved instr field << 3 | saved data field
+	RMF = 06244 # instr field := saved instr field; data field := saved data field
 
-# extended arithmetic element (EAE) instructions
-iMUY = 07405 # (AC, MQ) := MQ * word following; L := 0
-iDVI = 07407 # (MQ, AC) = divmod((AC, MQ), word following); L := 0
-# more TBD
+	# extended arithmetic element (EAE) instructions
+	MUY = 07405 # (AC, MQ) := MQ * word following; L := 0
+	DVI = 07407 # (MQ, AC) = divmod((AC, MQ), word following); L := 0
+	# more TBD
 
-# automatic restart type KR01
-iSPL = 06102 # skip next instr on power low
-# memory parity type 188 NYI
-# teletype control
-iKSF = 06031 # skip on keyboard flag
-iKCC = 06032 # clear keyboard flag
-iKRS = 06034 # keyboard read buffer static: AC := AC & 07400 | keyboard buffer, keyboard flag untouched
-iKRB = 06036 # keyboard read buffer dynamic: AC := keyboard buffer, keyboard flag cleared
-iTSF = 06041 # skip on teleprinter flag
-iTCF = 06042 # clear teleprinter flag
-iTPC = 06044 # load teleprinter and print: teleprinter := AC & 0377
-iTLS = 06046 # load teleprinter sequence: teleprinter flag cleared; teleprinter := AC & 0377
-# multi-teletype ops NYI
-# high-speed tape reader and control type 750C
-iRSF = 06011 # skip on reader flag
-iRRB = 06012 # read reader buffer: AC := AC & 07400 | buffer; reader flag cleared
-iRFC = 06014 # reader fetch character: reader flag cleared, read of next char into buffer initiated, flag will be set when done
-# high-speed paper tape punch and control type 75E
-iPSF = 06021 # skip on punch flag
-iPCF = 06022 # clear punch flag
-iPPC = 06024 # load punch buffer and punch: punch buffer := AC & 0377, then punched; flag untouched
-iPLS = 06026 # load punch buffer sequence: punch flag cleared; punch buffer := AC & 0377; punch initiated, flag will be set when done
-# A/D converter type 189
-iADC = 06004 # convert analog to digital: AC := digitized quantity
-# A/D converter type 138E, multiplexer type 139E
-iADSF = 06531 # skip on A-D flag
-iADCV = 06532 # clear flag, initiate conversion, flag set when done
-iADRB = 06534 # AC := last converted value, flag cleared
-iADCC = 06541 # multiplexer channel address register CAR := 0
-iADSC = 06542 # CAR := AC & 0077, max of 64 single-ended or 32 differential channels
-iADIC = 06544 # CAR := CAR + 1 with wraparound
-# D/A converter type AA01A NYI
-# oscilloscope type 34D NYI
-# precision CRT display type 30N NYI
-# light pen type 370 NYI
-# incremental plotter and control type 350B NYI
-# card reader and control type CR01C NYI
-# card reader and control type 451 NYI
-# card punch control type 450 NYI
-# automatic line printer and control type 645 NYI
-# serial magnetic drum system type 251 NYI
-# DECtape systems NYI
-# automatic magnetic tape control type 57A NYI
-# magnetic tape system type 580 NYI
-# data communication systems type 680 NYI
+	# automatic restart type KR01
+	SPL = 06102 # skip next instr on power low
+	# memory parity type 188 NYI
+	# teletype control
+	KSF = 06031 # skip on keyboard flag
+	KCC = 06032 # clear keyboard flag
+	KRS = 06034 # keyboard read buffer static: AC := AC & 07400 | keyboard buffer, keyboard flag untouched
+	KRB = 06036 # keyboard read buffer dynamic: AC := keyboard buffer, keyboard flag cleared
+	TSF = 06041 # skip on teleprinter flag
+	TCF = 06042 # clear teleprinter flag
+	TPC = 06044 # load teleprinter and print: teleprinter := AC & 0377
+	TLS = 06046 # load teleprinter sequence: teleprinter flag cleared; teleprinter := AC & 0377
+	# multi-teletype ops NYI
+	# high-speed tape reader and control type 750C
+	RSF = 06011 # skip on reader flag
+	RRB = 06012 # read reader buffer: AC := AC & 07400 | buffer; reader flag cleared
+	RFC = 06014 # reader fetch character: reader flag cleared, read of next char into buffer initiated, flag will be set when done
+	# high-speed paper tape punch and control type 75E
+	PSF = 06021 # skip on punch flag
+	PCF = 06022 # clear punch flag
+	PPC = 06024 # load punch buffer and punch: punch buffer := AC & 0377, then punched; flag untouched
+	PLS = 06026 # load punch buffer sequence: punch flag cleared; punch buffer := AC & 0377; punch initiated, flag will be set when done
+	# A/D converter type 189
+	ADC = 06004 # convert analog to digital: AC := digitized quantity
+	# A/D converter type 138E, multiplexer type 139E
+	ADSF = 06531 # skip on A-D flag
+	ADCV = 06532 # clear flag, initiate conversion, flag set when done
+	ADRB = 06534 # AC := last converted value, flag cleared
+	ADCC = 06541 # multiplexer channel address register CAR := 0
+	ADSC = 06542 # CAR := AC & 0077, max of 64 single-ended or 32 differential channels
+	ADIC = 06544 # CAR := CAR + 1 with wraparound
+	# D/A converter type AA01A NYI
+	# oscilloscope type 34D NYI
+	# precision CRT display type 30N NYI
+	# light pen type 370 NYI
+	# incremental plotter and control type 350B NYI
+	# card reader and control type CR01C NYI
+	# card reader and control type 451 NYI
+	# card punch control type 450 NYI
+	# automatic line printer and control type 645 NYI
+	# serial magnetic drum system type 251 NYI
+	# DECtape systems NYI
+	# automatic magnetic tape control type 57A NYI
+	# magnetic tape system type 580 NYI
+	# data communication systems type 680 NYI
+#end i
 
 class CodeBuffer(object) :
 	"""overall management of a block of generated code."""
@@ -322,25 +327,25 @@ if __name__ == "__main__" :
 	start = 07756
 	c.org(start)
 	l1 = c.label("l1").resolve()
-	c.w(iKCC)
+	c.w(i.KCC)
 	l2 = c.label("l2").resolve()
-	c.w(iKSF)
-	l2.mi(opJMP, 0)
-	c.w(iKRB)
-	c.oi(iCLL | iRTL)
-	c.oi(iRTL)
-	c.oi(iSPA)
-	l2.mi(opJMP, 0)
-	c.oi(iRTL)
+	c.w(i.KSF)
+	l2.mi(op.JMP, 0)
+	c.w(i.KRB)
+	c.oi(i.CLL | i.RTL)
+	c.oi(i.RTL)
+	c.oi(i.SPA)
+	l2.mi(op.JMP, 0)
+	c.oi(i.RTL)
 	l3 = c.label("l3").resolve()
-	c.w(iKSF)
-	l3.mi(opJMP, 0)
-	c.w(iKRS)
-	c.oi(iSNL)
+	c.w(i.KSF)
+	l3.mi(op.JMP, 0)
+	c.w(i.KRS)
+	c.oi(i.SNL)
 	temp = c.label("temp")
-	temp.mi(opDCA, 1)
-	temp.mi(opDCA, 0)
-	l1.mi(opJMP, 0)
+	temp.mi(op.DCA, 1)
+	temp.mi(op.DCA, 0)
+	l1.mi(op.JMP, 0)
 	temp.resolve()
 	c.w(0)
 	c.w(0)
