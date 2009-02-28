@@ -23,7 +23,7 @@ c.org(0200)
 start.resolve()
 c.oi(i.CLA)
 ptr.mi(op.TAD, 0)
-c.oi(i.CIA).oi(i.IAC).oi(i.CIA) # AC := AC - 1
+c.oi(i.CIA).oi(i.CMA) # AC := AC - 1
 index.mi(op.DCA, 0)
 loop = c.label("loop").resolve()
 done = c.label("done")
