@@ -1,5 +1,7 @@
 #+
 # A machine-code generation library for the PDP-8.
+#
+# Written by Lawrence D'Oliveiro <ldo@geek-central.gen.nz>.
 #-
 
 wordbits = 12
@@ -335,36 +337,3 @@ def dump_simh(buf, out) :
 		out.write("d %4o %4o\n" % (addr, value))
 	#end for
 #end dump_simh
-
-if __name__ == "__main__" :
-	import sys
-	c = CodeBuffer()
-	# following sequence assembles the standard RIM loader
-	start = 07756
-	c.org(start)
-	l1 = c.label("l1").resolve()
-	c.oi(i.KCC)
-	l2 = c.label("l2").resolve()
-	c.oi(i.KSF)
-	l2.mi(op.JMP, 0)
-	c.oi(i.KRB)
-	c.oi(i.CLL | i.RTL)
-	c.oi(i.RTL)
-	c.oi(i.SPA)
-	l2.mi(op.JMP, 0)
-	c.oi(i.RTL)
-	l3 = c.label("l3").resolve()
-	c.oi(i.KSF)
-	l3.mi(op.JMP, 0)
-	c.oi(i.KRS)
-	c.oi(i.SNL)
-	temp = c.label("temp")
-	temp.mi(op.DCA, 1)
-	temp.mi(op.DCA, 0)
-	l1.mi(op.JMP, 0)
-	temp.resolve()
-	c.w(0)
-	c.w(0)
-	c.done()
-	dump_simh(c, sys.stdout)
-#end if
