@@ -210,6 +210,7 @@ class CodeBuffer(object) :
 					pointing at the label."""
 					Parent.mi(op, ind, 0)
 					self.refer(Parent.lastaddr, pagebits + 1)
+					return self # for convenient chaining of calls
 				#end mi
 
 			#end label
@@ -247,6 +248,7 @@ class CodeBuffer(object) :
 		#end if
 		self.blocks[0][addr] = value
 		self.lastaddr = addr
+		return self # for convenient chaining of calls
 	#end d
 
 	def org(self, addr) :
@@ -254,6 +256,7 @@ class CodeBuffer(object) :
 		self.maxword(addr)
 		self.origin = int(addr)
 		self.lastaddr = self.origin
+		return self # for convenient chaining of calls
 	#end if
 
 	def w(self, value) :
@@ -261,6 +264,7 @@ class CodeBuffer(object) :
 		assert self.origin != None, "origin not set"
 		self.d(self.origin, value)
 		self.origin = (self.origin + 1) % (1 << wordbits)
+		return self # for convenient chaining of calls
 	#end w
 
 	def mi(self, op, ind, addr) :
@@ -275,7 +279,7 @@ class CodeBuffer(object) :
 		else :
 			raise AssertionError("illegal cross-page reference")
 		#end if
-		self.w(op << 9 | (0, 1)[ind] << 8 | page << 7 | addr & mask)
+		return self.w(op << 9 | (0, 1)[ind] << 8 | page << 7 | addr & mask)
 	#end mi
 
 	def oi(self, instr) :
@@ -291,7 +295,7 @@ class CodeBuffer(object) :
 			assert instr & 00001 == 0, "illegal group 2 op"
 			  # everything else valid?
 		#end if
-		self.w(instr)
+		return self.w(instr)
 	#end oi
 
 	def done(self) :
@@ -300,6 +304,7 @@ class CodeBuffer(object) :
 		for label in self.labels :
 			label.assert_resolved()
 		#end for
+		return self # for convenient chaining of calls
 	#end done
 
 	def output(self, start = None, end = None) :
