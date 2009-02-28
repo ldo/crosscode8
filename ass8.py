@@ -283,17 +283,20 @@ class CodeBuffer(object) :
 	#end mi
 
 	def oi(self, instr) :
-		"""generates an operate instruction at the current origin, checking
-		for conflicting bit settings."""
-		assert instr & 07000 == 07000
-		if instr & 00400 == 0 :
-			# group 1
-			assert instr & 00015 in (00000, 00001, 00004, 00010), "illegal combination of group 1 ops"
-			  # only rotate in one direction at a time, can't rotate and increment together
-		else :
-			# group 2
-			assert instr & 00001 == 0, "illegal group 2 op"
-			  # everything else valid?
+		"""generates a non-memory-reference instruction at the current origin,
+		checking for conflicting bit settings for operate microinstructions."""
+		if instr & 07000 == 07000 :
+			if instr & 00400 == 0 :
+				# group 1
+				assert instr & 00015 in (00000, 00001, 00004, 00010), "illegal combination of group 1 ops"
+				  # only rotate in one direction at a time, can't rotate and increment together
+			else :
+				# group 2
+				assert instr & 00001 == 0, "illegal group 2 op"
+				  # everything else valid?
+			#end if
+		elif instr & 07000 != 06000 :
+			raise AssertionError("not an IOT or operate instruction")
 		#end if
 		return self.w(instr)
 	#end oi
@@ -340,20 +343,20 @@ if __name__ == "__main__" :
 	start = 07756
 	c.org(start)
 	l1 = c.label("l1").resolve()
-	c.w(i.KCC)
+	c.oi(i.KCC)
 	l2 = c.label("l2").resolve()
-	c.w(i.KSF)
+	c.oi(i.KSF)
 	l2.mi(op.JMP, 0)
-	c.w(i.KRB)
+	c.oi(i.KRB)
 	c.oi(i.CLL | i.RTL)
 	c.oi(i.RTL)
 	c.oi(i.SPA)
 	l2.mi(op.JMP, 0)
 	c.oi(i.RTL)
 	l3 = c.label("l3").resolve()
-	c.w(i.KSF)
+	c.oi(i.KSF)
 	l3.mi(op.JMP, 0)
-	c.w(i.KRS)
+	c.oi(i.KRS)
 	c.oi(i.SNL)
 	temp = c.label("temp")
 	temp.mi(op.DCA, 1)
