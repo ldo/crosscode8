@@ -124,139 +124,137 @@ class CodeBuffer(object) :
 		self.maxbits(val, wordbits)
 	#end maxword
 
+	class LabelClass(object) :
+		"""representation of a label within the CodeBuffer."""
+
+		def __init__(self, name, parent) :
+			self.refs = []
+			self.name = name
+			self.value = None # to begin with
+			self.parent = parent
+		#end __init__
+
+		def resolve(self, value = None) :
+			self.parent.resolve(self, value)
+			return self # for convenient chaining of calls
+		#end resolve
+
+		def resolved(self) :
+			"""returns True iff the label has been resolved."""
+			return self.value != None
+		#end if
+
+		def assert_resolved(self) :
+			"""asserts that the label has been resolved."""
+			if self.value == None :
+				raise AssertionError("label \"%s\" not resolved" % self.name)
+			#end if
+		#end assert_resolved
+
+	#end LabelClass
+
 	def __init__(self) :
-
-		def MakeLabelClass(Parent) :
-			# creates a new label class bound to the parent CodeBuffer instance.
-
-			class label(object) :
-				"""representation of a label within the CodeBuffer."""
-
-				def __init__(self, name) :
-					"""name is for informational purposes only, not checked for
-					duplicates or anything else."""
-					self.refs = []
-					self.name = name
-					self.value = None # to begin with
-					Parent.labels.append(self)
-				#end __init__
-
-				def fixup(self, addr, bits) :
-					# common internal routine for actually fixing up references
-					if bits == pagebits + 1 :
-						oldval = Parent.e(addr)
-						mask = (1 << pagebits) - 1
-						if addr & ~mask == self.value & ~mask :
-							page = 1
-						elif self.value & ~mask == 0 :
-							page = 0
-						else :
-							raise AssertionError \
-							  (
-								"label %s: illegal cross-page reference" % self.name
-							  )
-						#end if
-						value = oldval & ~mask | page << pagebits | self.value & mask
-					elif bits == wordbits :
-						value = self.value
-					#end if
-					Parent.d(addr, value)
-				#end fixup
-
-				def refer(self, addr, bits) :
-					"""inserts a reference to the specified label at the specified
-					location. Note only supported values for bits are 8 (including
-					page indicator) or 12. May be called any number of times before or
-					after the label is resolved."""
-					addr = Parent.resolve(addr)
-					assert bits == pagebits + 1 or bits == wordbits
-					if self.value != None :
-						# resolve straight away
-						self.fixup(addr, bits)
-					else :
-						self.refs.append((addr, bits)) # for later resolution
-					#end if
-					return self # for convenient chaining of calls
-				#end refer
-
-				def resolve(self, value = None) :
-					"""marks the label as resolved to the specified address, or the current
-					origin if None. Must be called exactly once per label."""
-					assert self.value == None # not already resolved
-					if value == None :
-						value = Parent.origin
-					else :
-						value = Parent.resolve(value)
-					#end if
-					self.value = value
-					for addr, bits in self.refs :
-						self.fixup(addr, bits)
-					#end for
-					self.refs = []
-					return self # for convenient chaining of calls
-				#end resolve
-
-				def resolved(self) :
-					"""returns True iff the label has been resolved."""
-					return self.value != None
-				#end if
-
-				def assert_resolved(self) :
-					"""asserts that the label has been resolved."""
-					if self.value == None :
-						raise AssertionError("label \"%s\" not resolved" % self.name)
-					#end if
-				#end assert_resolved
-
-				def d(self, addr) :
-					"""generates a word at the specified address in the CodeBuffer that
-					will contain the address of the label."""
-					Parent.d(Parent.resolve(addr), 0)
-					return self.refer(Parent.lastaddr, wordbits)
-				#end d
-
-				def w(self) :
-					"""generates a word in the CodeBuffer that will contain the
-					address of the label."""
-					Parent.w(0)
-					return self.refer(Parent.lastaddr, wordbits)
-				#end w
-
-				def mi(self, op, ind) :
-					"""generates a memory-reference instruction in the CodeBuffer
-					pointing at the label."""
-					Parent.mi(op, ind, 0)
-					return self.refer(Parent.lastaddr, pagebits + 1)
-				#end mi
-
-			#end label
-
-		#begin MakeLabelClass
-			return label
-		#end MakeLabelClass
-
-	#begin __init__
 		self.blocks = {} # contiguous sequences of defined memory contents, indexed by start address
 		self.origin = None
-		self.labels = []
-		self.label = MakeLabelClass(self)
+		self.labels = {}
 		self.startaddr = None
 	#end __init__
 
-	def resolve(self, ref) :
-		if type(ref) == self.label :
-			ref = ref.value
-			assert ref != None, "reference to unresolved label %s" % ref.name
+	def label(self, name, resolve_here = False) :
+		"""defines a label with the specified name, if it doesn't already exist.
+		Else returns the existing label with that name."""
+		if not self.labels.has_key(name) :
+			self.labels[name] = self.LabelClass(name, self)
+		#end if
+		if resolve_here :
+			self.resolve(self.labels[name], self.origin)
+		#end if
+		return self.labels[name]
+	#end label
+
+	def _fixup(self, label, addr, bits) :
+		# common internal routine for actually fixing up a label reference.
+		assert label.value != None
+		if bits == pagebits + 1 :
+			# memory-reference instruction operand reference
+			oldval = self.e(addr)
+			mask = (1 << pagebits) - 1
+			if addr & ~mask == label.value & ~mask :
+				page = 1
+			elif label.value & ~mask == 0 :
+				page = 0
+			else :
+				raise AssertionError \
+				  (
+					"label %s: illegal cross-page reference" % label.name
+				  )
+			#end if
+			value = oldval & ~mask | page << pagebits | label.value & mask
+		elif bits == wordbits :
+			# whole-word reference
+			value = label.value
+		#end if
+		self.d(addr, value)
+	#end _fixup
+
+	def refer(self, label, addr, bits) :
+		"""inserts a reference to the specified label at the specified
+		location. Note only supported values for bits are 8 (including
+		page indicator) or 12. May be called any number of times before or
+		after the label is resolved."""
+		addr = self.follow(addr)
+		assert bits == pagebits + 1 or bits == wordbits
+		if label.value != None :
+			# resolve straight away
+			self._fixup(label, addr, bits)
+		else :
+			label.refs.append((addr, bits)) # for later resolution
+		#end if
+		return self # for convenient chaining of calls
+	#end refer
+
+	def resolve(self, label, value = None) :
+		"""marks the label as resolved to the specified address, or the current
+		origin if None. Must be called exactly once per label."""
+		assert label.value == None # not already resolved
+		if value == None :
+			value = self.origin
+		else :
+			value = self.follow(value)
+		#end if
+		assert value != None
+		label.value = value
+		for addr, bits in label.refs :
+			self._fixup(label, addr, bits)
+		#end for
+		label.refs = []
+		return self # for convenient chaining of calls
+	#end resolve
+
+	def follow(self, ref, atloc = None, bits = None) :
+		# returns ref if it's an integer, or its value if it's a resolved label.
+		# An unresolved label is only allowed if atloc is not None; in which
+		# case a dummy value is returned, and a reference to the label is added
+		# pointing to address atloc of width bits for fixing up later when the
+		# label is resolved.
+		if type(ref) == self.LabelClass :
+			if ref.value == None and atloc != None :
+				self.refer(ref, atloc, bits)
+				ref = 0 # dummy value, filled in later
+			else :
+				ref = ref.value
+				assert ref != None, "reference to unresolved label %s" % ref.name
+			#end if
 		else :
 			ref = int(ref)
 		#end if
 		self.maxword(ref)
 		return ref
-	#end resolve
+	#end follow
 
 	def e(self, addr) :
 		"""returns the value at location addr, or 0 if not yet set."""
-		addr = self.resolve(addr)
+		addr = self.follow(addr)
 		if len(self.blocks) == 1 : # assume just one 4kiW block for all of memory
 			val = self.blocks[0][addr]
 		else :
@@ -266,27 +264,28 @@ class CodeBuffer(object) :
 	#end e
 
 	def d(self, addr, value) :
-		"""deposits value into location addr."""
+		"""deposits value into location addr. value may be an unresolved label."""
 		if len(self.blocks) == 0 :
 			self.blocks[0] = [0] * (1 << wordbits)
 			  # can't be bothered scrimping on memory, just allocate
 			  # one 4kiW block
 		#end if
-		addr = self.resolve(addr)
-		self.blocks[0][addr] = self.resolve(value)
+		addr = self.follow(addr)
+		self.blocks[0][addr] = self.follow(value, addr, wordbits)
 		self.lastaddr = addr
 		return self # for convenient chaining of calls
 	#end d
 
 	def org(self, addr) :
 		"""sets the origin for defining subsequent consecutive memory contents."""
-		self.origin = self.resolve(addr)
+		self.origin = self.follow(addr)
 		self.lastaddr = self.origin
 		return self # for convenient chaining of calls
 	#end if
 
 	def w(self, value) :
-		"""deposits value into the current origin and advances it by 1."""
+		"""deposits value into the current origin and advances it by 1.
+		value may be an unresolved label."""
 		assert self.origin != None, "origin not set"
 		self.d(self.origin, value)
 		self.origin = (self.origin + 1) % (1 << wordbits)
@@ -294,7 +293,8 @@ class CodeBuffer(object) :
 	#end w
 
 	def ws(self, values) :
-		"""deposits a sequence of values into memory starting at the current origin."""
+		"""deposits a sequence of values into memory starting at the current origin.
+		Unresolved labels are allowed."""
 		if type(values) == str :
 			f = ord
 		else : # assume sequence of integers
@@ -307,10 +307,10 @@ class CodeBuffer(object) :
 
 	def mi(self, op, ind, addr) :
 		"""generates a memory-reference instruction at the current origin,
-		referencing the specified address."""
+		referencing the specified address, which may be an unresolved label."""
 		self.maxbits(op, 3) # assuming it's in [0 .. 5]!
 		mask = (1 << pagebits) - 1
-		addr = self.resolve(addr)
+		addr = self.follow(addr, self.origin, pagebits + 1)
 		if self.origin & ~mask == addr & ~mask :
 			page = 1
 		elif addr & ~mask == 0 :
@@ -344,13 +344,13 @@ class CodeBuffer(object) :
 		"""sets the start-address of the program. This is purely informational
 		as far as ths CodeBuffer class is concerned."""
 		assert self.startaddr == None
-		self.startaddr = self.resolve(startaddr)
+		self.startaddr = self.follow(startaddr)
 	#end start
 
 	def done(self) :
 		"""called at completion of code generation, prior to output of code. Currently
 		just checks that all labels are properly resolved."""
-		for label in self.labels :
+		for label in self.labels.values() :
 			label.assert_resolved()
 		#end for
 		return self # for convenient chaining of calls
