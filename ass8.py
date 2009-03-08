@@ -77,14 +77,16 @@ class i :
 	# memory parity type 188 NYI
 	# teletype control
 	KSF = 06031 # skip on keyboard flag
-	KCC = 06032 # clear keyboard flag
+	KCC = 06032 # clear keyboard flag and AC
 	KRS = 06034 # keyboard read buffer static: AC := AC & 07400 | keyboard buffer, keyboard flag untouched
 	KRB = 06036 # keyboard read buffer dynamic: AC := keyboard buffer, keyboard flag cleared
 	TSF = 06041 # skip on teleprinter flag
 	TCF = 06042 # clear teleprinter flag
 	TPC = 06044 # load teleprinter and print: teleprinter := AC & 0377
 	TLS = 06046 # load teleprinter sequence: teleprinter flag cleared; teleprinter := AC & 0377
-	# multi-teletype ops NYI
+	# teletype system type LT08 multi-teletype ops:
+	# op for lines 1-4 is 06400 | (linenr - 1) << 4 | (0 for kb/read, 1 for print/punch) << 3 | (bottom 3 op bits as for main teletype)
+	# op for line 5 is 06110 + ((0 for kb/read, 1 for print/punch) << 3) | (bottom 3 op bits as for main teletype)
 	# high-speed tape reader and control type 750C
 	RSF = 06011 # skip on reader flag
 	RRB = 06012 # read reader buffer: AC := AC & 07400 | buffer; reader flag cleared
