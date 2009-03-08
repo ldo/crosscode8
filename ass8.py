@@ -59,9 +59,18 @@ class i :
 	RMF = 06244 # instr field := saved instr field; data field := saved data field
 
 	# extended arithmetic element (EAE) instructions
-	MUY = 07405 # (AC, MQ) := MQ * word following; L := 0
-	DVI = 07407 # (MQ, AC) = divmod((AC, MQ), word following); L := 0
-	# more TBD
+	MUY = 07405 # multiply: (AC, MQ) := MQ * word following; L := 0
+	DVI = 07407 # divide: (MQ, AC) = divmod((AC, MQ), word following); L := 0
+	NMI = 07411
+	  # normalize: (AC, MQ) left-shifted until top two bits of AC not equal or until
+	  # value is 06000 0000. SC := number of places shifted; L := 0
+	SHL = 07413 # shift arithmetic left: (L, AC, MQ) shifted left by following word + 1
+	ASR = 07415 # shift arithmetic right: (L, AC, MQ) shifted right by following word + 1, copying down sign bit
+	LSR = 07417 # logical shift right: (L, AC, MQ) shifted right by following word + 1
+	MQL = 07421 # load multiplier quotient: MQ := AC; AC := 0
+	SCA = 07441 # step counter load into accumulator: AC := AC | SC
+	MQA = 07501 # multiplier quotient load into accumulator : AC := AC | MQ
+	CLA3 = 07601 # AC := 0
 
 	# automatic restart type KR01
 	SPL = 06102 # skip next instr on power low
