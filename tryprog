@@ -6,7 +6,7 @@
 #-
 
 import sys
-from ass8 import \
+from crosscode8 import \
 	CodeBuffer, \
 	i, \
 	op, \
