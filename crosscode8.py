@@ -445,3 +445,42 @@ def dump_simh(buf, out) :
 		out.write("g %o\n" % buf.startaddr)
 	#end if
 #end dump_simh
+
+def dump_rim(buf, out, leader = None, trailer = None) :
+	"""dumps the contents of CodeBuffer object buf to out as in a format that can
+	be read by the RIM loader. leader and trailer specify respectively the number
+	of leader and trailer bytes to output (leave as None to get the default)."""
+
+	def write_rim(addr, value) :
+		# writes out an address-value pair in RIM format.
+		out.write \
+		  (
+				chr(0x40 | addr >> 6 & 077)
+			+
+				chr(addr & 077)
+			+
+				chr(value >> 6 & 077)
+			+
+				chr(value & 077)
+		  )
+	#end write_rim
+
+#begin dump_rim
+	default_leader_trailer = 24 * 10
+	  # PDP-8 handbook says "about 2 feet" of leader-trailer codes,
+	  # ECMA-10 says row spacing is 2.54 mm = 0.1 inch
+	if leader == None :
+		leader = default_leader_trailer
+	#end if
+	if trailer == None :
+		trailer = default_leader_trailer
+	#end if
+	out.write("\0x80" * leader)
+	for addr, value in buf.dump(0, 010000) :
+		write_rim(addr, value)
+	#end for
+	if buf.startaddr != None :
+		write_rim(07777, buf.startaddr)
+	#end if
+	out.write("\0x80" * trailer)
+#end dump_rim

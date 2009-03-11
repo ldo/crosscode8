@@ -11,7 +11,10 @@ from crosscode8 import \
 	CodeBuffer, \
 	i, \
 	op, \
+	dump_rim, \
 	dump_simh
+
+rim_output = False # true for RIM-format output, False for sequence of SIMH commands
 
 c = CodeBuffer()
 
@@ -44,4 +47,4 @@ thestr.resolve()
 c.ws("THE QUICK BROWN FOX\n\0")
 
 c.start(start)
-dump_simh(c.done(), sys.stdout)
+(dump_simh, dump_rim)[rim_output](c.done(), sys.stdout)
