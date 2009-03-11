@@ -19,6 +19,7 @@ thestr = c.label("thestr")
 ptr = c.label("ptr").resolve(020) # pointer to data
 c.d(ptr, thestr)
 # program start
+c.psect("code")
 c.org(0200)
 start.resolve()
 c.oi(i.CLA)
@@ -39,6 +40,7 @@ c.mi(op.JMP, 0, loop)
 done.resolve()
 c.oi(i.HLT)
 # data
+c.psect("data")
 c.org(0300)
 thestr.resolve()
 c.ws("THE QUICK BROWN FOX\n\0")

@@ -6,6 +6,7 @@
 
 wordbits = 12
 pagebits = 7
+pageindbits = pagebits + 1 # page offset + indirect bit
 
 class op :
 	# memory-reference instruction opcodes
@@ -164,10 +165,49 @@ class CodeBuffer(object) :
 
 	#end LabelClass
 
+	class PsectClass(object) :
+		"""representation of a program section within the CodeBuffer. Besides
+		allowing logical grouping of code and data sections, I also provide
+		automatic checking that psects don't run into each other."""
+
+		def __init__(self, name, parent) :
+			self.name = name
+			self.origin = None # to begin with
+			self.minaddr = None
+			self.maxaddr = None
+			self.parent = parent
+		#end __init__
+
+		def setorigin(self, neworigin) :
+			"""updates the origin."""
+			if neworigin != None :
+				check_overlap = False # to begin with
+				if self.minaddr == None or self.minaddr > neworigin :
+					self.minaddr = neworigin
+					check_overlap = True
+				#end if
+				if self.maxaddr == None or self.maxaddr < neworigin :
+					self.maxaddr = neworigin
+					check_overlap = True
+				#end if
+				if check_overlap :
+					for otherpsect in self.parent.psects.values() :
+						if otherpsect != self and neworigin >= otherpsect.minaddr and neworigin <= otherpsect.maxaddr :
+							raise AssertionError("psect \"%s\" overlaps \"%s\" at location 0%04o" % (self.name, otherpsect.name, neworigin))
+						#end if
+					#end for
+				#end if
+			#end if
+			self.origin = neworigin
+			return self # for convenient chaining of calls
+		#end setorigin
+	#end PsectClass
+
 	def __init__(self) :
 		self.blocks = {} # contiguous sequences of defined memory contents, indexed by start address
-		self.origin = None
 		self.labels = {}
+		self.psects = {}
+		self.psect("") # initial default psect
 		self.startaddr = None
 	#end __init__
 
@@ -178,7 +218,7 @@ class CodeBuffer(object) :
 			self.labels[name] = self.LabelClass(name, self)
 		#end if
 		if resolve_here :
-			self.resolve(self.labels[name], self.origin)
+			self.resolve(self.labels[name], self.curpsect.origin)
 		#end if
 		return self.labels[name]
 	#end label
@@ -186,7 +226,7 @@ class CodeBuffer(object) :
 	def _fixup(self, label, addr, bits) :
 		# common internal routine for actually fixing up a label reference.
 		assert label.value != None
-		if bits == pagebits + 1 :
+		if bits == pageindbits :
 			# memory-reference instruction operand reference
 			oldval = self.e(addr)
 			mask = (1 << pagebits) - 1
@@ -214,7 +254,7 @@ class CodeBuffer(object) :
 		page indicator) or 12. May be called any number of times before or
 		after the label is resolved."""
 		addr = self.follow(addr)
-		assert bits == pagebits + 1 or bits == wordbits
+		assert bits == pageindbits or bits == wordbits
 		if label.value != None :
 			# resolve straight away
 			self._fixup(label, addr, bits)
@@ -229,7 +269,7 @@ class CodeBuffer(object) :
 		origin if None. Must be called exactly once per label."""
 		assert label.value == None # not already resolved
 		if value == None :
-			value = self.origin
+			value = self.curpsect.origin
 		else :
 			value = self.follow(value)
 		#end if
@@ -263,6 +303,16 @@ class CodeBuffer(object) :
 		return ref
 	#end follow
 
+	def psect(self, name) :
+		"""sets the current program section to the one with the specified name,
+		creating it if it doesn't already exist."""
+		if not self.psects.has_key(name) :
+			self.psects[name] = self.PsectClass(name, self)
+		#end if
+		self.curpsect = self.psects[name]
+		return self # for convenient chaining of calls
+	#end psect
+
 	def e(self, addr) :
 		"""returns the value at location addr, or 0 if not yet set."""
 		addr = self.follow(addr)
@@ -289,17 +339,17 @@ class CodeBuffer(object) :
 
 	def org(self, addr) :
 		"""sets the origin for defining subsequent consecutive memory contents."""
-		self.origin = self.follow(addr)
-		self.lastaddr = self.origin
+		self.curpsect.setorigin(self.follow(addr))
+		self.lastaddr = self.curpsect.origin
 		return self # for convenient chaining of calls
 	#end if
 
 	def w(self, value) :
 		"""deposits value into the current origin and advances it by 1.
 		value may be an unresolved label."""
-		assert self.origin != None, "origin not set"
-		self.d(self.origin, value)
-		self.origin = (self.origin + 1) % (1 << wordbits)
+		assert self.curpsect.origin != None, "origin not set"
+		self.d(self.curpsect.origin, value)
+		self.curpsect.setorigin((self.curpsect.origin + 1) % (1 << wordbits))
 		return self # for convenient chaining of calls
 	#end w
 
@@ -321,8 +371,8 @@ class CodeBuffer(object) :
 		referencing the specified address, which may be an unresolved label."""
 		self.maxbits(op, 3) # assuming it's in [0 .. 5]!
 		mask = (1 << pagebits) - 1
-		addr = self.follow(addr, self.origin, pagebits + 1)
-		if self.origin & ~mask == addr & ~mask :
+		addr = self.follow(addr, self.curpsect.origin, pageindbits)
+		if self.curpsect.origin & ~mask == addr & ~mask :
 			page = 1
 		elif addr & ~mask == 0 :
 			page = 0
