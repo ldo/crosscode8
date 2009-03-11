@@ -1,6 +1,7 @@
 #!/usr/bin/python
 #+
-# Test of my ass8 PDP-8 code-generation library
+# Test of my ass8 PDP-8 code-generation library: output a simple string to
+# the teletype.
 #
 # Written by Lawrence D'Oliveiro <ldo@geek-central.gen.nz>.
 #-
@@ -13,36 +14,34 @@ from crosscode8 import \
 	dump_simh
 
 c = CodeBuffer()
+
 index = c.label("index").resolve(010) # index reg
-start = c.label("start")
-thestr = c.label("thestr")
-ptr = c.label("ptr").resolve(020) # pointer to data
+start = c.label("start") # program entry point
+thestr = c.label("thestr") # string to output
+ptr = c.label("ptr").resolve(020) # pointer to string to output
 c.d(ptr, thestr)
-# program start
-c.psect("code")
-c.org(0200)
+
+# program code
+c.psect("code").org(0200)
 start.resolve()
-c.oi(i.CLA)
-c.mi(op.TAD, 0, ptr)
+c.oi(i.CLA).mi(op.TAD, 0, ptr) # AC := ptr
 c.oi(i.CIA).oi(i.CMA) # AC := AC - 1
-c.mi(op.DCA, 0, index)
+c.mi(op.DCA, 0, index) # initialize index for preincrement use
 loop = c.label("loop").resolve()
 done = c.label("done")
-c.oi(i.CLA)
-c.mi(op.TAD, 1, index)
-c.oi(i.SNA)
-c.mi(op.JMP, 0, done)
-c.oi(i.TLS)
+c.oi(i.CLA).mi(op.TAD, 1, index) # AC := @++index
+c.oi(i.SNA).mi(op.JMP, 0, done) # finished on hitting terminating nul
+c.oi(i.TLS) # output char
 out = c.label("out").resolve()
-c.oi(i.TSF)
-c.mi(op.JMP, 0, out)
-c.mi(op.JMP, 0, loop)
+c.oi(i.TSF).mi(op.JMP, 0, out) # wait done
+c.mi(op.JMP, 0, loop) # back for next
 done.resolve()
 c.oi(i.HLT)
+
 # data
-c.psect("data")
-c.org(0300)
+c.psect("data").org(0300)
 thestr.resolve()
 c.ws("THE QUICK BROWN FOX\n\0")
+
 c.start(start)
 dump_simh(c.done(), sys.stdout)
