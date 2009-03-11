@@ -475,12 +475,12 @@ def dump_rim(buf, out, leader = None, trailer = None) :
 	if trailer == None :
 		trailer = default_leader_trailer
 	#end if
-	out.write("\0x80" * leader)
+	out.write("\x80" * leader)
 	for addr, value in buf.dump(0, 010000) :
 		write_rim(addr, value)
 	#end for
 	if buf.startaddr != None :
 		write_rim(07777, buf.startaddr)
 	#end if
-	out.write("\0x80" * trailer)
+	out.write("\x80" * trailer)
 #end dump_rim
