@@ -6,7 +6,7 @@
 
 wordbits = 12
 pagebits = 7
-pageindbits = pagebits + 1 # page offset + indirect bit
+pageselbits = pagebits + 1 # page offset + 0/cur selector bit
 
 class op :
 	# memory-reference instruction opcodes
@@ -226,7 +226,7 @@ class CodeBuffer(object) :
 	def _fixup(self, label, addr, bits) :
 		# common internal routine for actually fixing up a label reference.
 		assert label.value != None
-		if bits == pageindbits :
+		if bits == pageselbits :
 			# memory-reference instruction operand reference
 			oldval = self.e(addr)
 			mask = (1 << pagebits) - 1
@@ -254,7 +254,7 @@ class CodeBuffer(object) :
 		page indicator) or 12. May be called any number of times before or
 		after the label is resolved."""
 		addr = self.follow(addr)
-		assert bits == pageindbits or bits == wordbits
+		assert bits == pageselbits or bits == wordbits
 		if label.value != None :
 			# resolve straight away
 			self._fixup(label, addr, bits)
@@ -371,7 +371,7 @@ class CodeBuffer(object) :
 		referencing the specified address, which may be an unresolved label."""
 		self.maxbits(op, 3) # assuming it's in [0 .. 5]!
 		mask = (1 << pagebits) - 1
-		addr = self.follow(addr, self.curpsect.origin, pageindbits)
+		addr = self.follow(addr, self.curpsect.origin, pageselbits)
 		if self.curpsect.origin & ~mask == addr & ~mask :
 			page = 1
 		elif addr & ~mask == 0 :
