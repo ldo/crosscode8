@@ -342,7 +342,7 @@ class CodeBuffer(object) :
 		self.curpsect.setorigin(self.follow(addr))
 		self.lastaddr = self.curpsect.origin
 		return self # for convenient chaining of calls
-	#end if
+	#end org
 
 	def w(self, value) :
 		"""deposits value into the current origin and advances it by 1.

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #+
-# Test of my ass8 PDP-8 code-generation library -- generate the standard RIM loader.
+# Test of my crosscode8 PDP-8 code-generation library -- generate the standard RIM loader.
 # This is loaded into a standard location at the top of memory, and when run it
 # loads a program from paper tape.
 #
