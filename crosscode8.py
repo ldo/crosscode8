@@ -17,95 +17,95 @@ class op :
     JMS = 4 # mem := PC; PC := mem + 1
     JMP = 5 # PC := mem
 #end op
-# memory locations [010 .. 017] are preincremented when indirected
+# memory locations [0o10 .. 0o17] are preincremented when indirected
 
 class i :
     # remaining instruction mnemonics
     # group 1 operate microinstructions (may be or'ed together to perform various combinations)
-    NOP = 07000 # no-op
-    IAC = 07001 # AC := AC + 1
-    RAL = 07004 # (L, AC) := rotateleft((L, AC), 1)
-    RTL = 07006 # (L, AC) := rotateleft((L, AC), 2)
-    RAR = 07010 # (L, AC) := rotateright((L, AC), 1)
-    RTR = 07012 # (L, AC) := rotateright((L, AC), 2)
-    CML = 07020 # L := ~L
-    CMA = 07040 # AC := ~AC
-    CIA = 07041 # AC := -AC
-    CLL = 07100 # L := 0
-    STL = 07120 # L := 1
-    CLA = 07200 # AC := 0
-    STA = 07240 # AC := ~0
+    NOP = 0o7000 # no-op
+    IAC = 0o7001 # AC := AC + 1
+    RAL = 0o7004 # (L, AC) := rotateleft((L, AC), 1)
+    RTL = 0o7006 # (L, AC) := rotateleft((L, AC), 2)
+    RAR = 0o7010 # (L, AC) := rotateright((L, AC), 1)
+    RTR = 0o7012 # (L, AC) := rotateright((L, AC), 2)
+    CML = 0o7020 # L := ~L
+    CMA = 0o7040 # AC := ~AC
+    CIA = 0o7041 # AC := -AC
+    CLL = 0o7100 # L := 0
+    STL = 0o7120 # L := 1
+    CLA = 0o7200 # AC := 0
+    STA = 0o7240 # AC := ~0
     # group 2 operate microinstructions (may be or'ed together to perform various combinations)
-    HLT = 07402 # halt
-    OSR = 07404 # AC := AC | SR
-    SKP = 07410 # skip next instr unconditionally
-    SNL = 07420 # skip next instr iff L != 0
-    SZL = 07430 # skip next instr iff L = 0
-    SZA = 07440 # skip next instr iff AC = 0
-    SNA = 07450 # skip next instr iff AC != 0
-    SMA = 07500 # skip next instr iff top bit of AC (sign bit) != 0
-    SPA = 07510 # skip next instr iff top bit of AC (sign bit) = 0
-    CLA2 = 07600 # AC := 0
+    HLT = 0o7402 # halt
+    OSR = 0o7404 # AC := AC | SR
+    SKP = 0o7410 # skip next instr unconditionally
+    SNL = 0o7420 # skip next instr iff L != 0
+    SZL = 0o7430 # skip next instr iff L = 0
+    SZA = 0o7440 # skip next instr iff AC = 0
+    SNA = 0o7450 # skip next instr iff AC != 0
+    SMA = 0o7500 # skip next instr iff top bit of AC (sign bit) != 0
+    SPA = 0o7510 # skip next instr iff top bit of AC (sign bit) = 0
+    CLA2 = 0o7600 # AC := 0
 
     # IOT instructions
-    ION = 06001 # interrupts on
-    IOF = 06002 # interrupts off
+    ION = 0o6001 # interrupts on
+    IOF = 0o6002 # interrupts off
     # on interrupt, interrupts are turned off, current PC is saved at 0, and PC is set to 1
     # memory extension control type 183
-    CDF = 06201 # 62N1 data field register := instr >> 3 & 7
-    CIF = 06202 # 62N2 instr field register := instr >> 3 & 7 on next JMP or JMS
-    RDF = 06214 # AC := AC & 07707 | data field register << 3
-    RIF = 06224 # AC := AC & 07707 | instr field register << 3
-    RIB = 06234 # AC := AC & 07700 | saved instr field << 3 | saved data field
-    RMF = 06244 # instr field := saved instr field; data field := saved data field
+    CDF = 0o6201 # 62N1 data field register := instr >> 3 & 7
+    CIF = 0o6202 # 62N2 instr field register := instr >> 3 & 7 on next JMP or JMS
+    RDF = 0o6214 # AC := AC & 0o7707 | data field register << 3
+    RIF = 0o6224 # AC := AC & 0o7707 | instr field register << 3
+    RIB = 0o6234 # AC := AC & 0o7700 | saved instr field << 3 | saved data field
+    RMF = 0o6244 # instr field := saved instr field; data field := saved data field
 
     # extended arithmetic element (EAE) instructions
-    MUY = 07405 # multiply: (AC, MQ) := MQ * word following; L := 0
-    DVI = 07407 # divide: (MQ, AC) = divmod((AC, MQ), word following); L := 0
-    NMI = 07411
+    MUY = 0o7405 # multiply: (AC, MQ) := MQ * word following; L := 0
+    DVI = 0o7407 # divide: (MQ, AC) = divmod((AC, MQ), word following); L := 0
+    NMI = 0o7411
       # normalize: (AC, MQ) left-shifted until top two bits of AC not equal or until
-      # value is 06000 0000. SC := number of places shifted; L := 0
-    SHL = 07413 # shift arithmetic left: (L, AC, MQ) shifted left by following word + 1
-    ASR = 07415 # shift arithmetic right: (L, AC, MQ) shifted right by following word + 1, copying down sign bit
-    LSR = 07417 # logical shift right: (L, AC, MQ) shifted right by following word + 1
-    MQL = 07421 # load multiplier quotient: MQ := AC; AC := 0
-    SCA = 07441 # step counter load into accumulator: AC := AC | SC
-    MQA = 07501 # multiplier quotient load into accumulator : AC := AC | MQ
-    CLA3 = 07601 # AC := 0
+      # value is 0o6000 0o000. SC := number of places shifted; L := 0
+    SHL = 0o7413 # shift arithmetic left: (L, AC, MQ) shifted left by following word + 1
+    ASR = 0o7415 # shift arithmetic right: (L, AC, MQ) shifted right by following word + 1, copying down sign bit
+    LSR = 0o7417 # logical shift right: (L, AC, MQ) shifted right by following word + 1
+    MQL = 0o7421 # load multiplier quotient: MQ := AC; AC := 0
+    SCA = 0o7441 # step counter load into accumulator: AC := AC | SC
+    MQA = 0o7501 # multiplier quotient load into accumulator : AC := AC | MQ
+    CLA3 = 0o7601 # AC := 0
 
     # automatic restart type KR01
-    SPL = 06102 # skip next instr on power low
+    SPL = 0o6102 # skip next instr on power low
     # memory parity type 188 NYI
     # teletype control
-    KSF = 06031 # skip on keyboard flag
-    KCC = 06032 # clear keyboard flag and AC
-    KRS = 06034 # keyboard read buffer static: AC := AC & 07400 | keyboard buffer, keyboard flag untouched
-    KRB = 06036 # keyboard read buffer dynamic: AC := keyboard buffer, keyboard flag cleared
-    TSF = 06041 # skip on teleprinter flag
-    TCF = 06042 # clear teleprinter flag
-    TPC = 06044 # load teleprinter and print: teleprinter := AC & 0377
-    TLS = 06046 # load teleprinter sequence: teleprinter flag cleared; teleprinter := AC & 0377
+    KSF = 0o6031 # skip on keyboard flag
+    KCC = 0o6032 # clear keyboard flag and AC
+    KRS = 0o6034 # keyboard read buffer static: AC := AC & 0o7400 | keyboard buffer, keyboard flag untouched
+    KRB = 0o6036 # keyboard read buffer dynamic: AC := keyboard buffer, keyboard flag cleared
+    TSF = 0o6041 # skip on teleprinter flag
+    TCF = 0o6042 # clear teleprinter flag
+    TPC = 0o6044 # load teleprinter and print: teleprinter := AC & 0o377
+    TLS = 0o6046 # load teleprinter sequence: teleprinter flag cleared; teleprinter := AC & 0o377
     # teletype system type LT08 multi-teletype ops:
-    # op for lines 1-4 is 06400 | (linenr - 1) << 4 | (0 for kb/read, 1 for print/punch) << 3 | (bottom 3 op bits as for main teletype)
-    # op for line 5 is 06110 + ((0 for kb/read, 1 for print/punch) << 3) | (bottom 3 op bits as for main teletype)
+    # op for lines 1-4 is 0o6400 | (linenr - 1) << 4 | (0 for kb/read, 1 for print/punch) << 3 | (bottom 3 op bits as for main teletype)
+    # op for line 5 is 0o6110 + ((0 for kb/read, 1 for print/punch) << 3) | (bottom 3 op bits as for main teletype)
     # high-speed tape reader and control type 750C
-    RSF = 06011 # skip on reader flag
-    RRB = 06012 # read reader buffer: AC := AC & 07400 | buffer; reader flag cleared
-    RFC = 06014 # reader fetch character: reader flag cleared, read of next char into buffer initiated, flag will be set when done
+    RSF = 0o6011 # skip on reader flag
+    RRB = 0o6012 # read reader buffer: AC := AC & 0o7400 | buffer; reader flag cleared
+    RFC = 0o6014 # reader fetch character: reader flag cleared, read of next char into buffer initiated, flag will be set when done
     # high-speed paper tape punch and control type 75E
-    PSF = 06021 # skip on punch flag
-    PCF = 06022 # clear punch flag
-    PPC = 06024 # load punch buffer and punch: punch buffer := AC & 0377, then punched; flag untouched
-    PLS = 06026 # load punch buffer sequence: punch flag cleared; punch buffer := AC & 0377; punch initiated, flag will be set when done
+    PSF = 0o6021 # skip on punch flag
+    PCF = 0o6022 # clear punch flag
+    PPC = 0o6024 # load punch buffer and punch: punch buffer := AC & 0o377, then punched; flag untouched
+    PLS = 0o6026 # load punch buffer sequence: punch flag cleared; punch buffer := AC & 0o377; punch initiated, flag will be set when done
     # A/D converter type 189
-    ADC = 06004 # convert analog to digital: AC := digitized quantity
+    ADC = 0o6004 # convert analog to digital: AC := digitized quantity
     # A/D converter type 138E, multiplexer type 139E
-    ADSF = 06531 # skip on A-D flag
-    ADCV = 06532 # clear flag, initiate conversion, flag set when done
-    ADRB = 06534 # AC := last converted value, flag cleared
-    ADCC = 06541 # multiplexer channel address register CAR := 0
-    ADSC = 06542 # CAR := AC & 0077, max of 64 single-ended or 32 differential channels
-    ADIC = 06544 # CAR := CAR + 1 with wraparound
+    ADSF = 0o6531 # skip on A-D flag
+    ADCV = 0o6532 # clear flag, initiate conversion, flag set when done
+    ADRB = 0o6534 # AC := last converted value, flag cleared
+    ADCC = 0o6541 # multiplexer channel address register CAR := 0
+    ADSC = 0o6542 # CAR := AC & 0o077, max of 64 single-ended or 32 differential channels
+    ADIC = 0o6544 # CAR := CAR + 1 with wraparound
     # D/A converter type AA01A NYI
     # oscilloscope type 34D NYI
     # precision CRT display type 30N NYI
@@ -203,7 +203,7 @@ class CodeBuffer(object) :
                 #end if
                 if check_overlap :
                     for otherpsect in self.parent.psects.values() :
-                        if otherpsect != self and neworigin >= otherpsect.minaddr and neworigin <= otherpsect.maxaddr :
+                        if otherpsect != self and otherpsect.minaddr != None and neworigin >= otherpsect.minaddr and otherpsect.maxaddr != None and neworigin <= otherpsect.maxaddr :
                             raise AssertionError("psect \"%s\" overlaps \"%s\" at location 0%04o" % (self.name, otherpsect.name, neworigin))
                         #end if
                     #end for
@@ -225,7 +225,7 @@ class CodeBuffer(object) :
     def label(self, name, resolve_here = False) :
         """defines a label with the specified name, if it doesn't already exist.
         Else returns the existing label with that name."""
-        if not self.labels.has_key(name) :
+        if name not in self.labels :
             self.labels[name] = self.LabelClass(name, self)
         #end if
         if resolve_here :
@@ -317,7 +317,7 @@ class CodeBuffer(object) :
     def psect(self, name) :
         """sets the current program section to the one with the specified name,
         creating it if it doesn't already exist."""
-        if not self.psects.has_key(name) :
+        if name not in self.psects :
             self.psects[name] = self.PsectClass(name, self)
         #end if
         self.curpsect = self.psects[name]
@@ -396,17 +396,17 @@ class CodeBuffer(object) :
     def oi(self, instr) :
         """generates a non-memory-reference instruction at the current origin,
         checking for conflicting bit settings for operate microinstructions."""
-        if instr & 07000 == 07000 :
-            if instr & 00400 == 0 :
+        if instr & 0o7000 == 0o7000 :
+            if instr & 0o0400 == 0 :
                 # group 1
-                assert instr & 00015 in (00000, 00001, 00004, 00010), "illegal combination of group 1 ops"
+                assert instr & 0o0015 in (0o0000, 0o0001, 0o0004, 0o0010), "illegal combination of group 1 ops"
                   # only rotate in one direction at a time, can't rotate and increment together
             else :
                 # group 2
-                assert instr & 00001 == 0, "illegal group 2 op"
+                assert instr & 0o0001 == 0, "illegal group 2 op"
                   # everything else valid?
             #end if
-        elif instr & 07000 != 06000 :
+        elif instr & 0o7000 != 0o6000 :
             raise AssertionError("not an IOT or operate instruction")
         #end if
         return self.w(instr)
@@ -449,7 +449,7 @@ class CodeBuffer(object) :
 def dump_simh(buf, out) :
     """dumps the contents of CodeBuffer object buf to out as a sequence of
     SIMH memory-deposit commands."""
-    for addr, value in buf.dump(0, 010000) :
+    for addr, value in buf.dump(0, 0o10000) :
         out.write("d %4o %4o\n" % (addr, value))
     #end for
     if buf.startaddr != None :
@@ -466,13 +466,13 @@ def dump_rim(buf, out, leader = None, trailer = None) :
         # writes out an address-value pair in RIM format.
         out.write \
           (
-                chr(0x40 | addr >> 6 & 077)
+                chr(0x40 | addr >> 6 & 0o77)
             +
-                chr(addr & 077)
+                chr(addr & 0o77)
             +
-                chr(value >> 6 & 077)
+                chr(value >> 6 & 0o77)
             +
-                chr(value & 077)
+                chr(value & 0o77)
           )
     #end write_rim
 
@@ -487,11 +487,11 @@ def dump_rim(buf, out, leader = None, trailer = None) :
         trailer = default_leader_trailer
     #end if
     out.write("\x80" * leader)
-    for addr, value in buf.dump(0, 010000) :
+    for addr, value in buf.dump(0, 0o10000) :
         write_rim(addr, value)
     #end for
     if buf.startaddr != None :
-        write_rim(07777, buf.startaddr)
+        write_rim(0o7777, buf.startaddr)
     #end if
     out.write("\x80" * trailer)
 #end dump_rim

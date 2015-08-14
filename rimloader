@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #+
 # Test of my crosscode8 PDP-8 code-generation library -- generate the standard RIM loader.
 # This is loaded into a standard location at the top of memory, and when run it
@@ -15,7 +15,7 @@ from crosscode8 import \
 	dump_simh
 
 c = CodeBuffer()
-start = 07756
+start = 0o7756
 c.org(start)
 l1 = c.label("l1").resolve()
 c.oi(i.KCC) # ready to start reading

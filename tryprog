@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #+
 # Test of my crosscode8 PDP-8 code-generation library: output a simple string to
 # the teletype.
@@ -18,14 +18,14 @@ rim_output = False # true for RIM-format output, False for sequence of SIMH comm
 
 c = CodeBuffer()
 
-index = c.label("index").resolve(010) # index reg
+index = c.label("index").resolve(0o10) # index reg
 start = c.label("start") # program entry point
 thestr = c.label("thestr") # string to output
-ptr = c.label("ptr").resolve(020) # pointer to string to output
+ptr = c.label("ptr").resolve(0o20) # pointer to string to output
 c.d(ptr, thestr)
 
 # program code
-c.psect("code").org(0200)
+c.psect("code").org(0o200)
 start.resolve()
 c.oi(i.CLA).mi(op.TAD, 0, ptr) # AC := ptr
 c.oi(i.CIA).oi(i.CMA) # AC := AC - 1
@@ -42,7 +42,7 @@ done.resolve()
 c.oi(i.HLT)
 
 # data
-c.psect("data").org(0300)
+c.psect("data").org(0o300)
 thestr.resolve()
 c.ws("THE QUICK BROWN FOX\n\0")
 
