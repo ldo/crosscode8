@@ -8,11 +8,11 @@
 
 import sys
 from crosscode8 import \
-	CodeBuffer, \
-	i, \
-	op, \
-	dump_rim, \
-	dump_simh
+    CodeBuffer, \
+    i, \
+    op, \
+    dump_rim, \
+    dump_simh
 
 rim_output = False # true for RIM-format output, False for sequence of SIMH commands
 
