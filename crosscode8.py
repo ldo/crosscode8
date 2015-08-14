@@ -137,7 +137,7 @@ class CodeBuffer(object) :
 	#end maxword
 
 	class LabelClass(object) :
-		"""representation of a label within the CodeBuffer."""
+		# internal representation of a label within the CodeBuffer.
 
 		def __init__(self, name, parent) :
 			self.refs = []
@@ -146,7 +146,18 @@ class CodeBuffer(object) :
 			self.parent = parent
 		#end __init__
 
+		def __cmp__(self, other) :
+			# just so it can be used as a dictionary key
+			return self.name.__cmp__(other.name)
+		#end __cmp__
+
+		def __hash__(self) :
+			# just so it can be used as a dictionary key
+			return self.name.__hash__()
+		#end __hash__
+
 		def resolve(self, value = None) :
+			"""resolves the label to have the specified value."""
 			self.parent.resolve(self, value)
 			return self # for convenient chaining of calls
 		#end resolve
@@ -166,9 +177,9 @@ class CodeBuffer(object) :
 	#end LabelClass
 
 	class PsectClass(object) :
-		"""representation of a program section within the CodeBuffer. Besides
-		allowing logical grouping of code and data sections, I also provide
-		automatic checking that psects don't run into each other."""
+		# internal representation of a program section within the CodeBuffer. Besides
+		# allowing logical grouping of code and data sections, I also provide
+		# automatic checking that psects don't run into each other.
 
 		def __init__(self, name, parent) :
 			self.name = name
@@ -366,10 +377,10 @@ class CodeBuffer(object) :
 		#end for
 	#end ws
 
-	def mi(self, op, ind, addr) :
+	def mi(self, opc, ind, addr) :
 		"""generates a memory-reference instruction at the current origin,
 		referencing the specified address, which may be an unresolved label."""
-		self.maxbits(op, 3) # assuming it's in [0 .. 5]!
+		self.maxbits(opc, 3) # assuming it's in [0 .. 5]!
 		mask = (1 << pagebits) - 1
 		addr = self.follow(addr, self.curpsect.origin, pageselbits)
 		if self.curpsect.origin & ~mask == addr & ~mask :
@@ -379,7 +390,7 @@ class CodeBuffer(object) :
 		else :
 			raise AssertionError("illegal cross-page reference")
 		#end if
-		return self.w(op << 9 | (0, 1)[ind] << 8 | page << 7 | addr & mask)
+		return self.w(opc << 9 | (0, 1)[ind] << 8 | page << 7 | addr & mask)
 	#end mi
 
 	def oi(self, instr) :
