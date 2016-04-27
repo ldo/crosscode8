@@ -303,7 +303,7 @@ class CodeBuffer(object) :
     def resolved(self, addr) :
         """returns the value of addr if it's an integer or a resolved label,
         else None."""
-        if type(addr) == self.LabelClass :
+        if isinstance(addr, self.LabelClass) :
             result = addr.value
         else :
             result = addr
@@ -317,7 +317,7 @@ class CodeBuffer(object) :
         # case a dummy value is returned, and a reference to the label is added
         # pointing to address atloc of width bits for fixing up later when the
         # label is resolved.
-        if type(ref) == self.LabelClass :
+        if isinstance(ref, self.LabelClass) :
             if ref.value == None and atloc != None :
                 self.refer(ref, atloc, bits)
                 ref = 0 # dummy value, filled in later
@@ -411,7 +411,7 @@ class CodeBuffer(object) :
     def ws(self, values) :
         """deposits a sequence of values into memory starting at the current origin.
         Unresolved labels are allowed."""
-        if type(values) == str :
+        if isinstance(values, str) :
             f = ord
         else : # assume sequence of integers
             f = int
