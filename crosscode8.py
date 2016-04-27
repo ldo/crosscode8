@@ -214,12 +214,19 @@ class CodeBuffer(object) :
         #end setorigin
     #end PsectClass
 
-    def __init__(self) :
+    def __init__(self, auto_cross_page = False) :
+        """auto_cross_page says whether to automatically handle cross-page
+        references by inserting indirect pointers on the current page."""
         self.blocks = {} # contiguous sequences of defined memory contents, indexed by start address
         self.labels = {}
         self.psects = {}
         self.psect("") # initial default psect
         self.startaddr = None
+        self.auto_cross_page = auto_cross_page
+        if self.auto_cross_page :
+            self.cross_page = list(None for i in range(0, 32))
+              # table of indirect pointers generated at the end of each page that needs it
+        #end if
     #end __init__
 
     def label(self, name, resolve_here = False) :
@@ -293,6 +300,17 @@ class CodeBuffer(object) :
         return self # for convenient chaining of calls
     #end resolve
 
+    def resolved(self, addr) :
+        """returns the value of addr if it's an integer or a resolved label,
+        else None."""
+        if type(addr) == self.LabelClass :
+            result = addr.value
+        else :
+            result = addr
+        #end if
+        return result
+    #end resolved
+
     def follow(self, ref, atloc = None, bits = None) :
         # returns ref if it's an integer, or its value if it's a resolved label.
         # An unresolved label is only allowed if atloc is not None; in which
@@ -355,10 +373,36 @@ class CodeBuffer(object) :
         return self # for convenient chaining of calls
     #end org
 
+    def _wrap_cross_page(self, one_more) :
+        # internal routine to step the origin over the automatically-generated
+        # indirect pointers on the current page.
+        if self.auto_cross_page :
+            cross_page = self.cross_page[self.curpsect.origin >> pagebits]
+            if (
+                    cross_page != None
+                and
+                    self.curpsect.origin % 128 == 128 - (len(cross_page) + 1 + int(one_more))
+            ) :
+                # self.cross_page[self.curpsect.origin >> pagebits] = None # should I?
+                nextaddr = self.curpsect.origin | 127
+                if one_more :
+                    self.auto_cross_page = False
+                    self.oi(i.NOP)
+                    self.auto_cross_page = True
+                #end if
+                # self.mi(op.JMP, 0, nextaddr) # jump over pointer table already inserted
+                self.curpsect.origin = nextaddr
+                  # pointer table doesn't use last location on page to
+                  # avoid above being cross-page jump
+            #end if
+        #end if
+    #end _wrap_cross_page
+
     def w(self, value) :
         """deposits value into the current origin and advances it by 1.
         value may be an unresolved label."""
         assert self.curpsect.origin != None, "origin not set"
+        self._wrap_cross_page(False)
         self.d(self.curpsect.origin, value)
         self.curpsect.setorigin((self.curpsect.origin + 1) % (1 << wordbits))
         return self # for convenient chaining of calls
@@ -380,22 +424,114 @@ class CodeBuffer(object) :
     def mi(self, opc, ind, addr) :
         """generates a memory-reference instruction at the current origin,
         referencing the specified address, which may be an unresolved label."""
+        save_auto_cross_page = self.auto_cross_page
         self.maxbits(opc, 3) # assuming it's in [0 .. 5]!
-        mask = (1 << pagebits) - 1
-        addr = self.follow(addr, self.curpsect.origin, pageselbits)
-        if self.curpsect.origin & ~mask == addr & ~mask :
+        mask = (1 << pagebits) - 1 # page-selection bits
+        if not self.auto_cross_page or ind or self.curpsect.origin >> pagebits == 0 :
+            # no auto-cross-page reference allowed
+            insaddr = self.follow(addr, self.curpsect.origin, pageselbits)
+        else :
+            insaddr = self.resolved(addr)
+              # if not resolved, then assume I need an auto-cross-page reference
+            if (
+                    insaddr != None
+                and
+                    self.curpsect.origin & ~mask != insaddr & ~mask
+                and
+                    insaddr & ~mask != 0
+            ) :
+                # need an auto-cross-page reference
+                insaddr = None
+            #end if
+            if insaddr != None :
+                # don't need a cross-page reference
+                insaddr = self.follow(addr, self.curpsect.origin, pageselbits)
+            #end if
+        #end if
+        if insaddr == None :
+            # generate the auto-cross-page reference
+            self.auto_cross_page = False
+            cross_page = self.cross_page[self.curpsect.origin >> pagebits]
+            if cross_page == None and self.curpsect.origin % 128 >= 125 :
+                # no room for a pointer table, fill rest of page with NOPs
+                print("NOP from {:#04o} for {}, table[{}] = {!r}".format(self.curpsect.origin, 128 - self.curpsect.origin % 128, len(cross_page), cross_page)) # debug
+                for j in range(0, 128 - self.curpsect.origin % 128) :
+                    self.oi(i.NOP)
+                #end for
+            #end if
+            cross_page = self.cross_page[self.curpsect.origin >> pagebits]
+            if cross_page == None :
+                # start new pointer table for this page
+                cross_page = {}
+                self.cross_page[self.curpsect.origin >> pagebits] = cross_page
+            #end if
+            refaddr = self.resolved(addr) # use resolved address as key if available
+            if refaddr == None :
+                refaddr = addr # use unresolved label itself as key
+            #end if
+            self.auto_cross_page = True
+            self._wrap_cross_page(refaddr not in cross_page)
+              # might cross to a new page
+            cross_page = self.cross_page[self.curpsect.origin >> pagebits]
+            if cross_page == None :
+                cross_page = {}
+                self.cross_page[self.curpsect.origin >> pagebits] = cross_page
+            #end if
+            if refaddr not in cross_page :
+                # new entry in pointer table
+                nextaddr = self.curpsect.origin & ~127 | 126 - len(cross_page)
+                print("new entry in ptr table from {:#04o} at {:#04o} = {:#04o}".format(self.curpsect.origin, nextaddr - 1, op.JMP << 9 | 1 << 7 | 127)) # debug
+                self.d(nextaddr - 1, op.JMP << 9 | 1 << 7 | 127)
+                  # insert jump over pointer table now
+                cross_page[refaddr] = nextaddr
+                self.d(cross_page[refaddr], addr) # will overwrite previous jump
+            #end if
+            insaddr = cross_page[refaddr]
             page = 1
-        elif addr & ~mask == 0 :
+            ind = True
+        elif self.curpsect.origin & ~mask == insaddr & ~mask :
+            page = 1
+        elif insaddr & ~mask == 0 :
             page = 0
         else :
             raise AssertionError("illegal cross-page reference")
         #end if
-        return self.w(opc << 9 | (0, 1)[ind] << 8 | page << 7 | addr & mask)
+        result = self.w(opc << 9 | (0, 1)[ind] << 8 | page << 7 | insaddr & mask)
+        self.auto_cross_page = save_auto_cross_page
+        return \
+            result
     #end mi
+
+    @staticmethod
+    def is_skip(instr) :
+        return \
+            instr & 0o7607 == 0o7400
+              # TODO: I/O skips?
+    #end is_skip
 
     def oi(self, instr) :
         """generates a non-memory-reference instruction at the current origin,
         checking for conflicting bit settings for operate microinstructions."""
+        cur_page = self.curpsect.origin >> pagebits
+        if False : # self.auto_cross_page and self.is_skip(instr) : # debug
+            print("skip instr: rel origin = {:#04o}".format(self.curpsect.origin % 128))
+            print(" len(cross_page) = {}, skip = {}\n".format(len(self.cross_page[cur_page], self.curpsect.origin % 128 >= 128 - (len(self.cross_page[cur_page]) + 3))))
+        #end if # debug
+        if self.auto_cross_page and self.is_skip(instr) :
+          # ensure there is room for this instr and one following on current page
+            if self.cross_page[cur_page] != None :
+                cross_page_len = len(self.cross_page[cur_page])
+            else :
+                cross_page_len = 0
+            #end if
+            if self.curpsect.origin % 128 >= 128 - (cross_page_len + 5) :
+              # not enough room to keep following instruction on same page
+                new_origin = self.curpsect.origin | 127
+                self.d(self.curpsect.origin, op.JMP << 9 | 1 << 7 | 127)
+                  # jump over cross-page table
+                self.curpsect.origin = new_origin
+            #end if
+        #end if
         if instr & 0o7000 == 0o7000 :
             if instr & 0o0400 == 0 :
                 # group 1
