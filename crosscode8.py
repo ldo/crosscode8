@@ -165,7 +165,7 @@ class CodeBuffer(object) :
         def resolved(self) :
             """returns True iff the label has been resolved."""
             return self.value != None
-        #end if
+        #end resolved
 
         def assert_resolved(self) :
             """asserts that the label has been resolved."""
