@@ -174,6 +174,18 @@ class CodeBuffer(object) :
             #end if
         #end assert_resolved
 
+        def __repr__(self) :
+            return \
+                "Label({name!r}{value})" \
+                .format \
+                  (
+                    name = self.name,
+                    value =
+                        (lambda : "", lambda : " = {:#04o}".format(self.value))
+                        [self.resolved()]()
+                  )
+        #end __repr__
+
     #end LabelClass
 
     class PsectClass(object) :
