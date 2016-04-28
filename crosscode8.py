@@ -395,11 +395,13 @@ class CodeBuffer(object) :
                 and
                     self.curpsect.origin % 128 == 128 - (len(cross_page) + 1 + int(one_more))
             ) :
+                print("ending page at {:#04o}".format(self.curpsect.origin)) # debug
                 # self.cross_page[self.curpsect.origin >> pagebits] = None # should I?
                 nextaddr = self.curpsect.origin | 127
                 if one_more :
+                    print("one more NOP") # debug
                     self.auto_cross_page = False
-                    self.oi(i.NOP)
+                    pass # self.oi(i.NOP)
                     self.auto_cross_page = True
                 #end if
                 # self.mi(op.JMP, 0, nextaddr) # jump over pointer table already inserted
@@ -464,12 +466,17 @@ class CodeBuffer(object) :
             # generate the auto-cross-page reference
             self.auto_cross_page = False
             cross_page = self.cross_page[self.curpsect.origin >> pagebits]
-            if cross_page == None and self.curpsect.origin % 128 >= 125 :
-                # no room for a pointer table, fill rest of page with NOPs
-                print("NOP from {:#04o} for {}, table[{}] = {!r}".format(self.curpsect.origin, 128 - self.curpsect.origin % 128, len(cross_page), cross_page)) # debug
-                for j in range(0, 128 - self.curpsect.origin % 128) :
-                    self.oi(i.NOP)
-                #end for
+            if self.curpsect.origin % 128 >= 125 :
+                if cross_page != None :
+                    print("table[{}] = {!r}".format(len(cross_page), cross_page)) # debug
+                    self.d(self.curpsect.origin, op.JMP << 9 | 1 << 7 | 127) # jump over pointer table already inserted
+                else :
+                    # no room for pointer table, fill rest of page with NOPs
+                    print("NOP from {:#04o} for {}".format(self.curpsect.origin, 128 - self.curpsect.origin % 128)) # debug
+                    for j in range(0, 128 - self.curpsect.origin % 128) :
+                        self.oi(i.NOP)
+                    #end for
+                #end if
             #end if
             cross_page = self.cross_page[self.curpsect.origin >> pagebits]
             if cross_page == None :
@@ -485,6 +492,12 @@ class CodeBuffer(object) :
             self._wrap_cross_page(refaddr not in cross_page)
               # might cross to a new page
             cross_page = self.cross_page[self.curpsect.origin >> pagebits]
+            if (cross_page == None or refaddr not in cross_page) and self.curpsect.origin % 128 == 127 :
+                self.auto_cross_page = False
+                self.oi(i.NOP)
+                self.auto_cross_page = True
+            #end if
+            cross_page = self.cross_page[self.curpsect.origin >> pagebits]
             if cross_page == None :
                 cross_page = {}
                 self.cross_page[self.curpsect.origin >> pagebits] = cross_page
@@ -492,9 +505,21 @@ class CodeBuffer(object) :
             if refaddr not in cross_page :
                 # new entry in pointer table
                 nextaddr = self.curpsect.origin & ~127 | 126 - len(cross_page)
-                print("new entry in ptr table from {:#04o} at {:#04o} = {:#04o}".format(self.curpsect.origin, nextaddr - 1, op.JMP << 9 | 1 << 7 | 127)) # debug
+                print("new entry in ptr table[{}] from {:#04o} at {:#04o} change {:#04o} to {:#04o}".format(len(cross_page), self.curpsect.origin, nextaddr - 1, self.blocks[0][nextaddr - 1], op.JMP << 9 | 1 << 7 | 127)) # debug
                 self.d(nextaddr - 1, op.JMP << 9 | 1 << 7 | 127)
                   # insert jump over pointer table now
+                print \
+                  (
+                    "ref from {} to {:#04o}"
+                    .format
+                      (
+                        (
+                            lambda : "label({})".format(refaddr.name),
+                            lambda : "{:#04o}".format(refaddr)
+                        )[isinstance(refaddr, int)](),
+                        nextaddr
+                      )
+                  ) # debug
                 cross_page[refaddr] = nextaddr
                 self.d(cross_page[refaddr], addr) # will overwrite previous jump
             #end if
@@ -536,7 +561,7 @@ class CodeBuffer(object) :
             else :
                 cross_page_len = 0
             #end if
-            if self.curpsect.origin % 128 >= 128 - (cross_page_len + 5) :
+            if self.curpsect.origin % 128 >= 128 - (cross_page_len + 3) :
               # not enough room to keep following instruction on same page
                 new_origin = self.curpsect.origin | 127
                 self.d(self.curpsect.origin, op.JMP << 9 | 1 << 7 | 127)
